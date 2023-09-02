@@ -1,0 +1,115 @@
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import io
+from sklearn.model_selection import train_test_split
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from imblearn.under_sampling import RandomUnderSampler
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+input_age_data=np.empty(1)
+input_sex_data=np.empty(1)
+input_lable_data = np.empty(1, dtype='<U1000') 
+input_ecg_array = np.empty(1)
+
+
+
+root_folder = 'C:/Users/rwkos/Desktop/MVP Code/Input_data'
+found_initial_frequency = False
+for root, _, files in os.walk(root_folder):
+    for file_name in files:
+        if file_name.endswith('.hea'):
+                    file_path = os.path.join(root, file_name)
+                    with open(file_path, 'r') as f:
+                        lines = f.readlines()
+                        for line in lines:
+                            line = line.strip()
+                            f_name = line
+                            if not(found_initial_frequency):
+                                first_line = line.split()
+                                initial_frequency = int(first_line[-2])
+                                found_initial_frequency = True
+                            if line.startswith('# Age:'):
+                                age_value = line.split(': ')[-1]
+                                input_age_data[0]=(int(age_value)/100)
+                            elif line.startswith('# Sex:'):
+                                sex_type = line.split(': ')[-1]
+                                if sex_type == 'Male' or sex_type == 'M':
+                                    input_sex_data[0] = 1
+
+                                elif sex_type == 'Female' or sex_type == 'F':
+                                    input_sex_data[0] = 0
+
+                            if line.startswith('# Dx:'):
+                                dx_value = line.split(': ')[-1]
+                                input_str = dx_value.split(',')#[0]
+                                # Print the result
+                                
+                                input_lable_data = input_str  
+                                       
+
+        elif file_name.endswith('.mat'):
+            data = io.loadmat(root_folder +'/'+ file_name)  # Load .mat file
+            array = data['resampled_data']         # Replace 'array' with the actual variable name in your .mat file
+            input_ecg_array = np.expand_dims(array, axis=0)
+                
+class MultiInputECGClassifier(nn.Module):
+    def __init__(self, num_classes):
+        super(MultiInputECGClassifier, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels=num_leads, out_channels=16, kernel_size=3)
+        self.pool = nn.MaxPool1d(kernel_size=4)
+        self.fc1 = nn.Linear(16 * ((num_data_points - 4) // 4) + 2, 128)  # Adding 2 for age and sex
+        self.dropout1 = nn.Dropout(p=0.6)
+        self.fc2 = nn.Linear(128, num_classes)
+
+    def forward(self, ecg, age, sex):
+        ecg_features = self.pool(torch.relu(self.conv1(ecg)))
+        ecg_features = ecg_features.view(ecg_features.size(0), -1)  # Flatten the tensor
+        age = age.unsqueeze(1)  # Expand dimensions to match ecg_features
+        sex = sex.unsqueeze(1)  # Expand dimensions to match ecg_features
+        combined_features = torch.cat((ecg_features, age, sex), dim=1)
+        combined_features = torch.relu(self.fc1(combined_features))
+        combined_features = self.dropout1(combined_features)
+        output = self.fc2(combined_features)
+        return output       
+
+
+num_classes = 19
+num_leads = input_ecg_array.shape[1]
+num_data_points = input_ecg_array.shape[2]        
+#import MultiInputECGClassifier from MVP_code_final
+# Define the model architecture
+num_classes = 19 # Replace with the correct number of classes
+model = MultiInputECGClassifier(num_classes)
+
+# Load the saved model's state dictionary
+model.load_state_dict(torch.load('C:/Users/rwkos/Desktop/MVP Code/saved_model/model.pth'))
+
+# Convert validation data to PyTorch tensors (similar to what you did during training)
+X_val_tensor = torch.tensor(input_ecg_array, dtype=torch.float32)
+age_val_tensor = torch.tensor(input_age_data, dtype=torch.float32)
+sex_val_tensor = torch.tensor(input_sex_data, dtype=torch.float32)
+
+label_19_array = ['111975006', '164873001', '164889003', '164909002', '164934002', '17338001', '270492004', '39732003', '425623009', '426177001', '426783006', '427084000', '427393009', '428750005', '445118002', '59118001', '67741000119109', '698252002', '713426002']
+
+# Set the model to evaluation mode
+model.eval()
+
+# Disable gradient calculations
+with torch.no_grad():
+    # Forward pass on validation data
+    val_outputs = model(X_val_tensor, age_val_tensor, sex_val_tensor)
+    # Get predicted class labels
+    predicted_labels = val_outputs.argmax(dim=1)
+
+
+predicted_output = label_19_array[predicted_labels.item()]
+
+
+print('predicted output :',predicted_output)
+print('real value       :',input_lable_data)
