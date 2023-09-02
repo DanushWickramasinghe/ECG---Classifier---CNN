@@ -1,0 +1,50 @@
+#### This code takes in a .mat file and resizes it to have 4096 data points and standardizes all its data points. Outputs a .mat file.
+
+import os
+import numpy as np
+import scipy.io
+
+# This standardizes the data points of the given array.
+def standardize_array(arr):
+    mean = np.mean(arr)
+    std = np.std(arr)
+    standardized_arr = (arr - mean) / std
+    return standardized_arr
+
+# This resizes the given array.
+def load_and_resize(mat_file_name):
+  # Load the original .mat file
+  original_data = scipy.io.loadmat(folder_path + mat_file_name)['resampled_data'] # Replace 'your_variable_name' with the actual variable name
+
+  # Take first 4096 data  points if original rows contain more than 4096 data points.
+  if original_data.shape[1] > 4096:
+    reshaped_data = [row[:4096] for row in original_data]
+
+# Convert the list of truncated rows back to a NumPy array
+    reshaped_data = np.array(reshaped_data)
+
+  # If original rows contain less than 4096 points, zero pad them till they have 4096 points in each lead.                  
+  elif original_data.shape[0] < 4096:
+    padding = 4096 - original_data.shape[1]
+    reshaped_data = np.pad(original_data, ((0, 0), (0, padding)), mode='constant')
+  
+                     
+  #Normalize array
+  final_data_array = standardize_array(reshaped_data)
+  #scipy.io.savemat('C:/Users/rwkos/Desktop/CNN/car/'+ mat_file_name, {'val': final_data_array})
+  scipy.io.savemat('C:/Users/rwkos/Desktop/MVP Code/Final data Georgia/'+'g2_final/'+ mat_file_name, {'resampled_data': final_data_array})
+  
+
+
+#folder_path = "C:/Users/rwkos/Desktop/CNN/cpsc_2018/g1/"
+folder_path = "C:/Users/rwkos/Desktop/MVP Code/Neww_data_resampled_georgia/g2/g2_resampled/"
+
+# Recursively resize and standardize each .mat file in the folder.
+for file_name in os.listdir(folder_path):
+        if file_name.endswith(".mat"):
+            #print(str(os.getcwd()))
+            #data_paths.append(os.path.join(folder_path, file_name))
+            load_and_resize(file_name)
+            #print(file_name)
+            
+    
