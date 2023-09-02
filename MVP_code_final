@@ -1,0 +1,436 @@
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import io
+from sklearn.model_selection import train_test_split
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from imblearn.under_sampling import RandomUnderSampler
+
+
+# Create an empty 2D NumPy array with a shape of (999, 3)
+rows = 3761
+cols = 3
+col =1    
+preproccesed_header_data = np.zeros((rows, cols))        #preprccessed_header_data = [Age,Male,Female]
+
+lable_data = np.empty(rows, dtype='<U1000') 
+age_data = np.empty(rows)
+sex_data = np.empty(rows)
+
+ 
+
+def parse_header(file_path):
+    header_info = {'Age': None, 'Sex': None, 'Dx': None, 'Rx': None, 'Hx': None}
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            line = line.strip()
+            f_name = line
+            if line.startswith('# Age:'):
+                age_value = line.split(': ')[-1]
+                if age_value == 'NaN' or int(age_value) <= 0 or int(age_value) > 100 :
+                    #header_info['Age'] = None
+                    preproccesed_header_data[i][0] = mean_age/100
+                    age_data[i] = mean_age/100              ########
+                else :
+                    preproccesed_header_data[i][0] = (int(age_value))/100
+                    age_data[i]=(int(age_value)/100)
+            elif line.startswith('# Sex:'):
+                sex_type = line.split(': ')[-1]
+                if sex_type == 'Male' or sex_type == 'M':
+                    preproccesed_header_data[i][1]=1
+                    sex_data[i] = 1
+
+                elif sex_type == 'Female' or sex_type == 'F':
+                    preproccesed_header_data[i][2]=1
+                    sex_data[i] = 0
+                else:    
+                    preproccesed_header_data[i][1]=1
+                    sex_data[i] = 1
+
+            """elif line.startswith('# Dx:'):
+                dx_value = line.split(': ')[-1]
+                header_info['Dx'] = dx_value
+                lable_data[i] = dx_value"""
+              
+    return header_info
+
+
+#root_folder = 'C:/Users/rwkos/Desktop/DSE PROJECT/classification-of-12-lead-ecgs-the-physionetcomputing-in-cardiology-challenge-2020-1.0.2/training/georgia'
+root_folder = 'C:/Users/rwkos/Desktop/MVP Code/Final data Georgia'
+#not_label_19_array = ['11157007', '164884008', '164890007', '164917005', '164921003', '164930006', '164931005', '195042002', '195060002', '195080001', '195101003', '195126007', '233917008', '251120003', '251146004', '251266004', '251268003', '253339007', '253352002', '27885002', '284470004', '425419005', '426434006', '426648003', '426664006', '426761007', '426995002', '428417006', '429622005', '445211001', '47665007', '55930002', '59931005', '713422000', '713427006', '74390002', '89792004']
+label_19_array = ['111975006', '164873001', '164889003', '164909002', '164934002', '17338001', '270492004', '39732003', '425623009', '426177001', '426783006', '427084000', '427393009', '428750005', '445118002', '59118001', '67741000119109', '698252002', '713426002']
+# Iterate through .hea files and parse header information
+data = []
+"""for file_name in os.listdir(folder_path):
+    if file_name.endswith('.hea'):
+        file_path = os.path.join(folder_path, file_name)
+        header_info = parse_header(file_path)
+        data.append(header_info)"""
+data_paths = []
+ecg_array = []        
+i=0
+for root, _, files in os.walk(root_folder):
+    #print(type(root))
+    parts = root.split("/")
+    # Get the last element from the list of parts
+    last_part = parts[-1]
+    output_str = last_part.split('\\')[-1]
+    print(last_part)
+    
+    if last_part == "CNN\cpsc_2018":
+        mean_age = 64
+    elif last_part == "training\cpsc_2018_extra":
+        mean_age = 65
+    elif last_part == "Final data Georgia":
+        mean_age = 62
+    elif last_part == "training\ptb":
+        mean_age = 56.3
+    elif last_part == "training\ptb-xl":
+        mean_age = 61
+    k=1
+    input_matfile = True
+    for file_name in files:
+        k+=1
+        if file_name.endswith('.hea'):
+            file_path = os.path.join(root, file_name)
+            with open(file_path, 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    line = line.strip()
+                    f_name = line
+                    if line.startswith('# Dx:'):
+                        dx_value = line.split(': ')[-1]
+                        #header_info['Dx'] = dx_value
+                        
+                        
+                        # String to check
+                        string_to_check = dx_value
+
+                        # Check if the string is NOT in the array
+                        is_in_array = np.isin(string_to_check, label_19_array)
+
+                        # Print the result
+                        if is_in_array:
+                            lable_data[i] = dx_value
+                            header_info = parse_header(file_path) 
+                            i=i+1
+                            input_matfile = True   
+                        else:
+                            #continue
+                            input_matfile = False        
+            
+            #data.append(header_info)
+        elif file_name.endswith('.mat') and input_matfile:
+            #print(str(os.getcwd()))
+            #data_paths.append(os.path.join(folder_path, file_name))
+            #data_paths.append('C:/Users/rwkos/Desktop/CNN/cpsc_2018/g1/'+file_name)
+            data = io.loadmat(root_folder +'/'+ output_str +'/'+ file_name)  # Load .mat file
+            array = data['resampled_data']         # Replace 'array' with the actual variable name in your .mat file
+            ecg_array.append(array)
+            #print(file_name)
+            data_paths.append(root_folder+file_name)
+X_array = np.stack(ecg_array, axis=0)
+real_labels_array = lable_data.copy()
+Y_array = np.array([item.split(',')[0] for item in lable_data]) 
+
+
+
+
+"""# Save arrays in computer
+np.savez('my_arrays.npz', X_array=X_array, Y_array=Y_array,age_data=age_data,sex_data=sex_data)
+import numpy as np
+# Load arrays
+
+loaded_data = np.load('my_arrays.npz')  # For multiple arrays saved with np.savez()
+
+# Access individual arrays from the loaded data
+X_array = loaded_data['X_array']
+Y_array = loaded_data['Y_array']
+age_data = loaded_data['age_data']
+sex_data = loaded_data['sex_data']           """
+
+
+#label encoder
+
+# Initialize the LabelEncoder
+label_encoder = LabelEncoder()
+
+# Fit and transform the label encoder on the string array
+Y_array = label_encoder.fit_transform(Y_array)
+
+"""
+value_counts = np.bincount(Y_array)
+
+# Find the maximum frequency and its corresponding value
+max_frequency = value_counts.max()
+value_with_max_frequency = np.argmax(value_counts)
+
+X_array_index = np.arange(X_array.shape[0])
+
+
+# Define the input arrays
+X1 = X_array_index
+X2 = age_data
+X3 = sex_data
+y = Y_array
+
+
+# Specify which labels to undersample and to what extent
+undersampling_dict = {value_with_max_frequency: max_frequency}  # Undersample label '0' to have 2 samples {max:1500}
+
+# Create an instance of RandomUnderSampler with custom sampling strategy
+undersampler = RandomUnderSampler(sampling_strategy=undersampling_dict, random_state=42)
+
+# Reshape the 1D samples to 2D with one column to use RandomUnderSampler
+X1_reshaped = X1.reshape(-1, 1)
+X2_reshaped = X2.reshape(-1, 1)
+X3_reshaped = X3.reshape(-1, 1)
+
+# Fit and transform the labels to perform undersampling
+X1_undersampled, y_undersampled = undersampler.fit_resample(X1_reshaped, y)
+X2_undersampled, _ = undersampler.fit_resample(X2_reshaped, y)
+X3_undersampled, _ = undersampler.fit_resample(X3_reshaped, y)
+
+# Flatten the undersampled 2D arrays back to 1D
+X1_undersampled = X1_undersampled.flatten()
+X2_undersampled = X2_undersampled.flatten()
+X3_undersampled = X3_undersampled.flatten()
+
+# Input index array
+index_array = X1_undersampled
+
+# Use indexing to select elements based on the index array
+original_array = X_array
+X_array = original_array[index_array]
+Y_array = y_undersampled
+age_data = X2_undersampled
+sex_data = X3_undersampled
+
+"""
+#Train test split
+X_train,X_val,Y_train, Y_val,age_train,age_val,sex_train,sex_val,real_labels_array_train,real_labels_array_val, = train_test_split(
+    X_array,Y_array,age_data,sex_data,real_labels_array, test_size=0.2, random_state=42
+)
+
+
+
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+
+# Assuming you have already loaded your data and labels into numpy arrays
+# X_train: 2D numpy array of shape (num_samples, num_leads, num_data_points)
+# y_train: 1D numpy array of labels
+
+# Convert numpy arrays to PyTorch tensors
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+y_train_tensor = torch.tensor(Y_train, dtype=torch.long)
+
+##   Age and Sex
+age_train_tensor = torch.tensor(age_train, dtype=torch.float32)
+sex_train_tensor = torch.tensor(sex_train, dtype=torch.float32)
+
+
+# Define a multi-input CNN model
+class MultiInputECGClassifier(nn.Module):
+    def __init__(self, num_classes):
+        super(MultiInputECGClassifier, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels=num_leads, out_channels=16, kernel_size=3)
+        self.pool = nn.MaxPool1d(kernel_size=4)
+        self.fc1 = nn.Linear(16 * ((num_data_points - 4) // 4) + 2, 128)  # Adding 2 for age and sex
+        self.dropout1 = nn.Dropout(p=0.6)
+        self.fc2 = nn.Linear(128, num_classes)
+
+    def forward(self, ecg, age, sex):
+        ecg_features = self.pool(torch.relu(self.conv1(ecg)))
+        ecg_features = ecg_features.view(ecg_features.size(0), -1)  # Flatten the tensor
+        age = age.unsqueeze(1)  # Expand dimensions to match ecg_features
+        sex = sex.unsqueeze(1)  # Expand dimensions to match ecg_features
+        combined_features = torch.cat((ecg_features, age, sex), dim=1)
+        combined_features = torch.relu(self.fc1(combined_features))
+        combined_features = self.dropout1(combined_features)
+        output = self.fc2(combined_features)
+        return output                                            
+"""
+class MultiInputECGClassifier(nn.Module):
+    def _init_(self, num_classes):
+        super(MultiInputECGClassifier, self)._init_()
+        self.conv1 = nn.Conv1d(in_channels=num_leads, out_channels=16, kernel_size=3)
+        self.bn1 = nn.BatchNorm1d(16)  # Add BatchNorm after the first convolution
+        self.pool = nn.MaxPool1d(kernel_size=4)
+        self.fc1 = nn.Linear(16 * ((num_data_points - 4) // 4) + 2, 128)  # Adding 2 for age and sex
+        self.bn2 = nn.BatchNorm1d(128)  # Add BatchNorm after the first fully connected layer
+        self.dropout1 = nn.Dropout(p=0.6)
+        self.fc2 = nn.Linear(128, num_classes)
+
+
+    def forward(self, ecg, age, sex):
+        ecg_features = self.pool(torch.relu(self.bn1(self.conv1(ecg))))  # Apply BatchNorm after conv1
+        ecg_features = ecg_features.view(ecg_features.size(0), -1)  # Flatten the tensor
+        age = age.unsqueeze(1)  # Expand dimensions to match ecg_features
+        sex = sex.unsqueeze(1)  # Expand dimensions to match ecg_features
+        combined_features = torch.cat((ecg_features, age, sex), dim=1)
+        combined_features = torch.relu(self.bn2(self.fc1(combined_features)))  # Apply BatchNorm after fc1
+        combined_features = self.dropout1(combined_features)
+        output = self.fc2(combined_features)
+        return output                    
+"""
+# Initialize multi-input model
+num_classes = len(set(Y_array))
+num_leads = X_train.shape[1]
+num_data_points = X_train.shape[2]
+model = MultiInputECGClassifier(num_classes)
+
+
+"""# Define loss function and optimizer        Oshadha
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)"""
+# Define loss function and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.001)
+
+# Create a DataLoader for batch training
+batch_size = 16
+train_dataset = TensorDataset(X_train_tensor, age_train_tensor, sex_train_tensor, y_train_tensor)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+losses = []
+validation_losses = []
+validation_accuracy = []
+train_accuracy = []
+
+# Convert validation numpy arrays to PyTorch tensors
+X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
+age_val_tensor = torch.tensor(age_val, dtype=torch.float32)
+sex_val_tensor = torch.tensor(sex_val, dtype=torch.float32)
+y_val_tensor = torch.tensor(Y_val, dtype=torch.long)
+
+##################################################3
+l1_lambda = 0.001
+# Training loop
+num_epochs = 25
+for epoch in range(num_epochs):
+    model.train()
+    running_loss = 0
+    for inputs_ecg, inputs_age, inputs_sex, labels in train_loader:
+        optimizer.zero_grad()
+        outputs = model(inputs_ecg, inputs_age, inputs_sex)
+        loss = criterion(outputs, labels)
+
+###############################################
+        # L1 regularization
+        l1_reg = torch.tensor(0.0)
+        for param in model.parameters():
+            l1_reg += torch.norm(param, p=1)
+        loss += l1_lambda * l1_reg  # Add L1 regularization term to the loss
+
+#################################################
+        loss.backward()
+        
+        running_loss += loss.item()
+        optimizer.step()
+
+    # print(running_loss, X_train.shape[0])
+    losses.append(running_loss / X_train.shape[0])
+
+    with torch.no_grad():
+        val_outputs = model(X_val_tensor, age_val_tensor, sex_val_tensor)
+        loss = criterion(val_outputs, y_val_tensor)
+        # print(loss.item(), X_val.shape[0])
+        validation_losses.append(loss.item() / X_val.shape[0])
+
+    print(".", end="")
+
+    if epoch % 5 == 4:
+        model.eval()
+        with torch.no_grad():
+            print("\nEpoch {}".format(epoch+1))
+            train_outputs = model(X_train_tensor, age_train_tensor, sex_train_tensor)
+            predicted_train_labels = train_outputs.argmax(dim=1).numpy()
+            train_acc = accuracy_score(y_train_tensor, predicted_train_labels)
+            print(f"Train Accuracy: {train_acc:.8f}")
+            train_accuracy.append(train_acc)
+
+            val_outputs = model(X_val_tensor, age_val_tensor, sex_val_tensor)
+            predicted_labels = val_outputs.argmax(dim=1).numpy()
+            accuracy = accuracy_score(Y_val, predicted_labels)
+            print(f"Validation Accuracy: {accuracy:.8f}")
+            validation_accuracy.append(accuracy)  # Append validation accuracy to the list#######################################################
+
+    # print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+# Assuming you have loaded your validation data, labels, age, and sex inputs
+# X_val: 2D numpy array of ECG data for validation
+# age_val: 1D numpy array of ages for validation
+# sex_val: 1D numpy array of sexes (0 or 1) for validation
+# y_val: 1D numpy array of labels for validation
+
+# Set the model to evaluation mode
+model.eval()
+
+# Disable gradient calculations since you're not training
+with torch.no_grad():
+    # Forward pass on validation data
+    val_outputs = model(X_val_tensor, age_val_tensor, sex_val_tensor)
+    # Get predicted class labels
+    predicted_labels = val_outputs.argmax(dim=1)
+
+# Convert predicted labels to numpy array
+predicted_labels_np = predicted_labels.numpy()
+
+# Calculate F1 score
+#f1 = f1_score(Y_val, predicted_labels_np)
+
+#print(f"F1 Score: {f1:.4f}")
+
+
+# Calculate accuracy
+accuracy = accuracy_score(Y_val, predicted_labels_np)
+print(f"Validation Accuracy: {accuracy:.4f}")
+
+plt.plot(losses, label="train loss")
+plt.legend()
+plt.show()
+
+plt.plot(validation_losses, label="validation_losses")
+plt.legend()
+plt.show()
+
+
+
+
+
+
+
+# Create a list of epochs (x-axis values)
+epochs = range(1, len(validation_accuracy) + 1)
+
+# Plot validation accuracy
+plt.figure(figsize=(10, 5))
+plt.plot(epochs, validation_accuracy, label='Validation Accuracy', marker='o', linestyle='-')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.title('Validation Accuracy vs. Epochs')
+plt.legend()
+
+# If you have training accuracies, you can also plot them
+if train_accuracy:
+    plt.plot(epochs, train_accuracy, label='Training Accuracy', marker='o', linestyle='-')
+    plt.legend()
+
+# Show the plot
+plt.grid(True)
+plt.show()
+
+
+
+
+
+
+
+
