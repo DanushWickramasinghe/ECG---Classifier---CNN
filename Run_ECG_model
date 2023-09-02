@@ -47,10 +47,10 @@ if len(hea_files) == 1:
 
             if line.startswith('# Dx:'):
                 dx_value = line.split(': ')[-1]
-                input_str = dx_value.split(',')[0]
+                input_str = dx_value.split(',')[:]
                 # Print the result
                 
-                input_lable_data[0] = input_str  
+                input_lable_data = list(input_str)  
                                        
 
 elif len(hea_files) == 0:
@@ -212,6 +212,6 @@ predicted_output = label_19_array[predicted_labels.item()]
 
 
 print('predicted output :',predicted_output)
-print('real value       :',input_lable_data[0])
+print('real value       :',input_lable_data)
 
 
