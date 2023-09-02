@@ -1,0 +1,91 @@
+"""#############################################################################################
+#Hyper parameter tuning
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.metrics import accuracy_score
+import numpy as np
+
+# Define a parameter grid for hyperparameter tuning
+#'learning_rate': [0.001, 0.01, 0.1],
+#    'batch_size': [16, 32, 64],
+#    'num_hidden_units': [64, 128, 256],
+#    'l1_lambda': [0.001, 0.01, 0.1]
+param_grid = {
+    'learning_rate': [0.001,0.01],
+    'batch_size': [16,32],
+    'num_hidden_units': [64],
+    'l1_lambda': [0.001]
+}
+
+# Create an instance of the GridSearchCV with the model as the estimator
+# Replace 'model' with your model initialization here
+# model = MultiInputECGClassifier(num_classes)  # Initialize your model
+# optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=l1_lambda)
+
+# Define a function to create and train the model for a given set of hyperparameters
+def create_and_train_model(learning_rate, batch_size, num_hidden_units, l1_lambda):
+    model = MultiInputECGClassifier(num_classes)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=l1_lambda)
+
+    # ... (Rest of the training code, similar to the previous training loop)
+        # Create a DataLoader for batch training
+    train_dataset = TensorDataset(X_train_tensor, age_train_tensor, sex_train_tensor, y_train_tensor)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+    losses = []
+
+    for epoch in range( 5):
+        # ... (Training loop, as in the previous code)
+            model.train()
+            running_loss = 0
+            for inputs_ecg, inputs_age, inputs_sex, labels in train_loader:
+                optimizer.zero_grad()
+                outputs = model(inputs_ecg, inputs_age, inputs_sex)
+                loss = criterion(outputs, labels)
+
+        ###############################################
+                # L1 regularization
+                l1_reg = torch.tensor(0.0)
+                for param in model.parameters():
+                    l1_reg += torch.norm(param, p=1)
+                loss += l1_lambda * l1_reg  # Add L1 regularization term to the loss
+
+        #################################################
+                loss.backward()
+                
+                running_loss += loss.item()
+                optimizer.step()
+
+            # print(running_loss, X_train.shape[0])
+            losses.append(running_loss / X_train.shape[0])
+
+            with torch.no_grad():
+                val_outputs = model(X_val_tensor, age_val_tensor, sex_val_tensor)
+                loss = criterion(val_outputs, y_val_tensor)
+                # print(loss.item(), X_val.shape[0])
+                validation_losses.append(loss.item() / X_val.shape[0])
+    return accuracy
+
+best_accuracy = 0
+best_hyperparameters = None
+
+# Perform grid search manually
+for learning_rate in param_grid['learning_rate']:
+    for batch_size in param_grid['batch_size']:
+        for num_hidden_units in param_grid['num_hidden_units']:
+            for l1_lambda in param_grid['l1_lambda']:
+                accuracy = create_and_train_model(learning_rate, batch_size, num_hidden_units, l1_lambda)
+                if accuracy > best_accuracy:
+                    best_accuracy = accuracy
+                    best_hyperparameters = {
+                        'learning_rate': learning_rate,
+                        'batch_size': batch_size,
+                        'num_hidden_units': num_hidden_units,
+                        'l1_lambda': l1_lambda
+                    }
+
+print("Best Hyperparameters:", best_hyperparameters)
+print("Best Accuracy:", best_accuracy)                         """
+                                                             
