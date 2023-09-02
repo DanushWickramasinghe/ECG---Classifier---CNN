@@ -1,0 +1,59 @@
+import os
+import numpy as np
+from scipy import io
+from scipy.signal import resample
+
+# Define paths
+drive_path = '/content/drive/My Drive'
+data_folder_path = '/content/extracted_data/classification-of-12-lead-ecgs-the-physionetcomputing-in-cardiology-challenge-2020-1.0.2/training/georgia'
+# Define desired frequency
+desired_frequency = 257  # Desired sampling frequency in Hz
+
+# Function to process and resample data from a single .mat file
+def process_and_resample_mat_file(mat_file_path, output_folder_path):
+    data = io.loadmat(mat_file_path)
+
+    # Assuming each ECG data is stored as a 2D array
+    ecg_data = data['val']
+
+    num_leads, num_samples = ecg_data.shape
+
+    # Initialize an empty array to store the resampled data
+    resampled_data = np.zeros((num_leads, int(num_samples * desired_frequency / 500)), dtype=np.float64)
+
+    # Resample each lead's data from 500Hz to 257Hz
+    for i in range(num_leads):
+        resampled_data[i, :] = resample(ecg_data[i, :], int(num_samples * desired_frequency / 500))
+
+    # Generate the relative subfolder path within the data folder
+    relative_path = os.path.relpath(os.path.dirname(mat_file_path), os.path.join(drive_path, data_folder_path))
+
+    # Extract the subfolder name
+    subfolder_name = os.path.basename(relative_path)
+
+    # Generate output subfolder path with "_resampled" added to the end
+    output_subfolder_name = f'{subfolder_name}_resampled'
+    output_subfolder_path = os.path.join(output_folder_path, relative_path, output_subfolder_name)
+    os.makedirs(output_subfolder_path, exist_ok=True)
+
+    # Save resampled data as a .mat file in the output subfolder
+    output_file_path = os.path.join(output_subfolder_path, f'{os.path.splitext(os.path.basename(mat_file_path))[0]}_resampled.mat')
+    io.savemat(output_file_path, {'resampled_data': resampled_data})  # Save the resampled data as a 2D matrix
+
+# Recursively navigate through subfolders and process .mat files
+def process_files_in_folder(folder_path, output_folder_path):
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+        if os.path.isdir(item_path):
+            process_files_in_folder(item_path, output_folder_path)
+            # Rename subfolders that contained sets of .mat files
+            if item.startswith('g') and item[1:].isdigit():
+                new_subfolder_name = f'{item}_resampled'
+                new_subfolder_path = os.path.join(folder_path, new_subfolder_name)
+                os.rename(item_path, new_subfolder_path)
+        elif item.endswith('.mat'):
+            process_and_resample_mat_file(item_path, output_folder_path)
+
+# Call the function to process files in the data folder
+output_main_folder_path = '/content/drive/MyDrive/Colab Notebooks/Neww_data_resampled_georgia'
+process_files_in_folder(os.path.join(drive_path, data_folder_path), output_main_folder_path)
